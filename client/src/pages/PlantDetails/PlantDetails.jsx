@@ -2,13 +2,32 @@ import Container from '../../components/Shared/Container'
 import Heading from '../../components/Shared/Heading'
 import Button from '../../components/Shared/Button/Button'
 import PurchaseModal from '../../components/Modal/PurchaseModal'
-import { useState } from 'react'
-import { useLoaderData } from 'react-router'
+import { useEffect, useState } from 'react'
+import { useLoaderData, useParams } from 'react-router'
 import useAuth from '../../hooks/useAuth'
+import useRole from '../../hooks/useRole'
+import LoadingSpinner from '../../components/Shared/LoadingSpinner'
+import axios from 'axios'
+import { useQuery } from '@tanstack/react-query'
 
 const PlantDetails = () => {
+  const { id } = useParams()
   const { user } = useAuth();
-  const plant = useLoaderData()
+  const [role, isRoleLoading] = useRole()
+
+
+  const { data: plant, isLoading, refetch } = useQuery({
+    queryKey: ['plant', id],
+    queryFn: async () => {
+      const { data } = await axios(
+        `${import.meta.env.VITE_API_URL}/plant/${id}`
+      )
+      return data
+    }
+
+  })
+
+
   const [isOpen, setIsOpen] = useState(false)
   console.log(plant)
   if (!plant || typeof plant !== 'object') return <p>Sorry bro</p>
@@ -19,6 +38,11 @@ const PlantDetails = () => {
     setIsOpen(false)
   }
 
+
+
+
+
+  if (isRoleLoading || isLoading) return <LoadingSpinner></LoadingSpinner>
   return (
     <Container>
       <div className='mx-auto flex flex-col lg:flex-row justify-between w-full gap-12'>
@@ -83,12 +107,18 @@ const PlantDetails = () => {
           <div className='flex justify-between'>
             <p className='font-bold text-3xl text-gray-500'>Price: {price}$</p>
             <div>
-              <Button disabled={!user} onClick={() => setIsOpen(true)} label={user ? 'Purchase' : 'Login To Purchase'} />
+              <Button
+                disabled={!user || user?.email === seller?.email || role !== 'customer'}
+                onClick={() => setIsOpen(true)} label={user ? 'Purchase' : 'Login To Purchase'} />
             </div>
           </div>
           <hr className='my-6' />
 
-          <PurchaseModal plant={plant} closeModal={closeModal} isOpen={isOpen} />
+          <PurchaseModal
+            plant={plant}
+            fetchPlant={refetch}
+            closeModal={closeModal}
+            isOpen={isOpen} />
         </div>
       </div>
     </Container>
